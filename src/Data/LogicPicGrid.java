@@ -11,6 +11,7 @@ public class LogicPicGrid implements Serializable {
     transient private ArrayList<ArrayList<Integer>> m_Tcolonnes = new ArrayList<>();
     transient private ArrayList<ArrayList<Integer>> m_Tlignes = new ArrayList<>();
     private static final long serialVersionUID = 2L;
+    private static final String s_savePath = "save/";
 
     public int m_largeur = 0;
     public int m_hauteur = 0;
@@ -39,7 +40,7 @@ public class LogicPicGrid implements Serializable {
                 if (reponse.compareTo("O") == 0) {
                     System.out.print("nom du fichier : ");
                     String file_name = sc.nextLine();
-                    File file = new File(file_name);
+                    File file = new File(s_savePath + file_name);
                     if (!file.exists()) {
                         System.out.println("fichier inexistant");
                     }
@@ -60,7 +61,7 @@ public class LogicPicGrid implements Serializable {
                     if (sc.nextLine().compareTo("O") == 0) {
                         System.out.print("nom du fichier : ");
                         String file_name = sc.nextLine();
-                        File file = new File(file_name);
+                        File file = new File(s_savePath + file_name);
                         if (file.exists()) {
                             System.out.println("fichier deja existant");
                         } else {
