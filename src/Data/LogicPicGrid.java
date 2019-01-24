@@ -1,7 +1,10 @@
 package Data;
 import GUI.MainFrame;
+import GUI.MySwingWorker;
 
+import javax.swing.*;
 import java.io.*;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Scanner;
 
@@ -22,6 +25,8 @@ public class LogicPicGrid implements Serializable {
     transient public static final int s_PLEIN = 1;
     transient public static final int s_BLOQUE = 2;
     transient public static final int s_FINAL = 3;
+
+    public MySwingWorker m_swingWorker = null;
 
     //--------------------------------------------------------------------------
     //------              Création Utilisation de la grille               ------
@@ -228,7 +233,17 @@ public class LogicPicGrid implements Serializable {
     }
 
     public void set(int _i, int _j, int _val){
-        m_tableau[_i][_j] = _val;
+        if(get(_i, _j) != _val) {
+            m_tableau[_i][_j] = _val;
+            if (m_swingWorker != null) {
+                try {
+                    Thread.sleep(10);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                m_swingWorker.myPublish(new Quadruplet(_i, _j, _val,m_largeur));
+            }
+        }
     }
 
     //--------------------------------------------------------------------------
