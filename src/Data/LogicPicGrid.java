@@ -8,6 +8,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Scanner;
 
+import static Data.Outils.mergeSeg;
+
 public class LogicPicGrid implements Serializable {
 
     private static LogicPicGrid s_singleton = null;
@@ -27,6 +29,7 @@ public class LogicPicGrid implements Serializable {
     transient public static final int s_FINAL = 3;
 
     public MySwingWorker m_swingWorker = null;
+    private boolean m_modification = false;
 
     //--------------------------------------------------------------------------
     //------              Création Utilisation de la grille               ------
@@ -228,13 +231,14 @@ public class LogicPicGrid implements Serializable {
 
     }
 
-    public int get(int _i, int _j){
+    private int get(int _i, int _j){
         return m_tableau[_i][_j];
     }
 
-    public void set(int _i, int _j, int _val){
+    private void set(int _i, int _j, int _val){
         if(get(_i, _j) != _val) {
             m_tableau[_i][_j] = _val;
+            m_modification = true;
             if (m_swingWorker != null) {
                 try {
                     Thread.sleep(10);
@@ -550,53 +554,22 @@ public class LogicPicGrid implements Serializable {
     //phase de remplissage avec les combinaisons gagnantes
     public void phasePossible(){
         ArrayList<Segment> espacesLibre;
-        ArrayList<Integer> resteAPlacer;
-        boolean debut;
-        int idxDebut = 0;
 
         //region Pour chaque ligne
         for (int i = 0; i < m_hauteur; i++) {
             ArrayList<Integer> ligne = m_lignes.get(i);
-            espacesLibre = new ArrayList<>();
-            debut = false;
-            for (int j = 0; j < m_largeur; j++){
-                if(!debut && get(i, j) != s_BLOQUE){
-                    debut = true;
-                    idxDebut = j;
-                }else if(debut && get(i, j) == s_BLOQUE){
-                    debut = false;
-                    espacesLibre.add(new Segment(idxDebut,j-1));
-                }
-            }
-            if(debut){
-                espacesLibre.add(new Segment(idxDebut,m_largeur-1));
-            }
-
+            espacesLibre = recupEspaceVideLigne(i);
             ArrayList<Segment> ligneARemplir = Outils.combinaisonGagnante(espacesLibre, ligne);
-            remplirLigne(ligneARemplir, i);
+            remplirLigne(ligneARemplir, i, s_PLEIN);
         }
         //endregion
 
         //region Pour chaque colonne
         for (int j = 0; j < m_largeur; j++) {
             ArrayList<Integer> colonne = m_colonnes.get(j);
-            espacesLibre = new ArrayList<>();
-            debut = false;
-            for (int i = 0; i < m_hauteur; i++){
-                if(!debut && get(i, j) != s_BLOQUE){
-                    debut = true;
-                    idxDebut = i;
-                }else if(debut && get(i, j) == s_BLOQUE){
-                    debut = false;
-                    espacesLibre.add(new Segment(idxDebut,i-1));
-                }
-            }
-            if(debut){
-                espacesLibre.add(new Segment(idxDebut,m_hauteur-1));
-            }
-
+            espacesLibre = recupEspaceVideColonne(j);
             ArrayList<Segment> colonneARemplir = Outils.combinaisonGagnante(espacesLibre, colonne);
-            remplirColonne(colonneARemplir, j);
+            remplirColonne(colonneARemplir, j, s_PLEIN);
         }
         //endregion
     }
@@ -681,6 +654,53 @@ public class LogicPicGrid implements Serializable {
         return moindebile(i1,j1);
     }
 
+    public void magie(){
+        m_modification = false;
+        try {
+            ArrayList<Integer> valeurs;
+            ArrayList<Segment> espacesLibre, espacesPlein, combinaisonARemplir;
+            ArrayList<ArrayList<Segment>> combinaisons,combinaisonsRestante,inverseCombiRest;
+
+            //region Pour chaque ligne
+            for (int i = 0; i < m_hauteur; i++) {
+                valeurs = m_lignes.get(i);
+                espacesLibre = recupEspaceVideLigne(i);
+                espacesPlein = recupEspacePleinLigne(i);
+
+                combinaisons = Outils.combinaisons(espacesLibre, valeurs);
+                combinaisonsRestante = Outils.suppressionCombinaisons(combinaisons, espacesPlein);
+                combinaisonARemplir = combinaisonsRestante.stream().reduce(null, Outils::mergeSeg);
+                remplirLigne(combinaisonARemplir, i, s_PLEIN);
+
+                inverseCombiRest = Outils.inversionCombinaisons(combinaisonsRestante, m_largeur);
+                combinaisonARemplir = inverseCombiRest.stream().reduce(null, Outils::mergeSeg);
+                remplirLigne(combinaisonARemplir, i, s_BLOQUE);
+            }
+            //endregion
+
+            //region Pour chaque colonne
+            for (int j = 0; j < m_largeur; j++) {
+                valeurs = m_colonnes.get(j);
+                espacesLibre = recupEspaceVideColonne(j);
+                espacesPlein = recupEspacePleinColonne(j);
+
+                combinaisons = Outils.combinaisons(espacesLibre, valeurs);
+                combinaisonsRestante = Outils.suppressionCombinaisons(combinaisons, espacesPlein);
+                combinaisonARemplir = combinaisonsRestante.stream().reduce(null, Outils::mergeSeg);
+                remplirColonne(combinaisonARemplir, j, s_PLEIN);
+
+                inverseCombiRest = Outils.inversionCombinaisons(combinaisonsRestante, m_hauteur);
+                combinaisonARemplir = inverseCombiRest.stream().reduce(null, Outils::mergeSeg);
+                remplirColonne(combinaisonARemplir, j, s_BLOQUE);
+            }
+            //endregion
+        }catch(Exception e) {
+            e.printStackTrace();
+        }
+        if(m_modification)
+            magie();
+    }
+
     //--------------------------------------------------------------------------
     //------                  Outils de gestion des Grid                  ------
     //--------------------------------------------------------------------------
@@ -754,22 +774,98 @@ public class LogicPicGrid implements Serializable {
         return colonne;
     }
 
-    private void remplirLigne(ArrayList<Segment> _liste, int _i) {
+    private ArrayList<Segment> recupEspacePleinLigne(int _i){
+        ArrayList espacesPlein = new ArrayList<>();
+        boolean debut = false;
+        int idxDebut = 0;
+        for (int j = 0; j < m_largeur; j++){
+            if(!debut && get(_i, j) == s_PLEIN){
+                debut = true;
+                idxDebut = j;
+            }else if(debut && get(_i, j) != s_PLEIN){
+                debut = false;
+                espacesPlein.add(new Segment(idxDebut,j-1));
+            }
+        }
+        if(debut){
+            espacesPlein.add(new Segment(idxDebut,m_largeur-1));
+        }
+        return espacesPlein;
+    }
+
+    private ArrayList<Segment> recupEspacePleinColonne(int _j){
+        ArrayList<Segment> espacesPlein = new ArrayList<>();
+        boolean debut = false;
+        int idxDebut = 0;
+        for (int i = 0; i < m_hauteur; i++){
+            if(!debut && get(i, _j) == s_PLEIN){
+                debut = true;
+                idxDebut = i;
+            }else if(debut && get(i, _j) != s_PLEIN){
+                debut = false;
+                espacesPlein.add(new Segment(idxDebut,i-1));
+            }
+        }
+        if(debut){
+            espacesPlein.add(new Segment(idxDebut,m_hauteur-1));
+        }
+        return  espacesPlein;
+    }
+
+    private ArrayList<Segment> recupEspaceVideLigne(int _i){
+        ArrayList espacesLibre = new ArrayList<>();
+        boolean debut = false;
+        int idxDebut = 0;
+        for (int j = 0; j < m_largeur; j++){
+            if(!debut && get(_i, j) != s_BLOQUE){
+                debut = true;
+                idxDebut = j;
+            }else if(debut && get(_i, j) == s_BLOQUE){
+                debut = false;
+                espacesLibre.add(new Segment(idxDebut,j-1));
+            }
+        }
+        if(debut){
+            espacesLibre.add(new Segment(idxDebut,m_largeur-1));
+        }
+        return espacesLibre;
+    }
+
+    private ArrayList<Segment> recupEspaceVideColonne(int _j){
+        ArrayList<Segment> espacesLibre = new ArrayList<>();
+        boolean debut = false;
+        int idxDebut = 0;
+        for (int i = 0; i < m_hauteur; i++){
+            if(!debut && get(i, _j) != s_BLOQUE){
+                debut = true;
+                idxDebut = i;
+            }else if(debut && get(i, _j) == s_BLOQUE){
+                debut = false;
+                espacesLibre.add(new Segment(idxDebut,i-1));
+            }
+        }
+        if(debut){
+            espacesLibre.add(new Segment(idxDebut,m_hauteur-1));
+        }
+        return  espacesLibre;
+    }
+
+    private void remplirLigne(ArrayList<Segment> _liste, int _i, int _val) {
         if (_liste != null) {
             int j = 0;
             for (Segment seg : _liste) {
                 for (j = seg.m_debut; j <= seg.m_fin; j++)
-                    set(_i, j, s_PLEIN);
+                    set(_i, j, _val);
             }
         }
     }
 
-    private void remplirColonne(ArrayList<Segment> _liste, int _j) {
+    private void remplirColonne(ArrayList<Segment> _liste, int _j, int _val) {
         if (_liste != null) {
             int i = 0;
             for (Segment seg : _liste) {
                 for (i = seg.m_debut; i <= seg.m_fin; i++)
-                    set(i, _j, s_PLEIN);
+                    set(i, _j, _val);
             }
         }
     }
