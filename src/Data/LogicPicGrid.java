@@ -1,5 +1,10 @@
 package Data;
+import GUI.MainFrame;
+import GUI.MySwingWorker;
+
+import javax.swing.*;
 import java.io.*;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Scanner;
 
@@ -20,6 +25,8 @@ public class LogicPicGrid implements Serializable {
     transient public static final int s_PLEIN = 1;
     transient public static final int s_BLOQUE = 2;
     transient public static final int s_FINAL = 3;
+
+    public MySwingWorker m_swingWorker = null;
 
     //--------------------------------------------------------------------------
     //------              Création Utilisation de la grille               ------
@@ -86,7 +93,7 @@ public class LogicPicGrid implements Serializable {
             result.m_tableau = new int[result.m_hauteur][result.m_largeur];
             for (int i = 0; i < result.m_hauteur; i++)
                 for (int j = 0; j < result.m_largeur; j++)
-                    result.m_tableau[i][j] = s_VIDE;
+                    result.set(i, j, s_VIDE);
 
             if (result.m_Tlignes == null ) result.m_Tlignes = new ArrayList<>();
             for (ArrayList<Integer> ligne : result.m_lignes){
@@ -217,8 +224,26 @@ public class LogicPicGrid implements Serializable {
     public void reset() {
         for (int i = 0; i < m_hauteur; i++)
             for (int j = 0; j < m_largeur; j++)
-                m_tableau[i][j] = s_VIDE;
+                set(i, j, s_VIDE);
 
+    }
+
+    public int get(int _i, int _j){
+        return m_tableau[_i][_j];
+    }
+
+    public void set(int _i, int _j, int _val){
+        if(get(_i, _j) != _val) {
+            m_tableau[_i][_j] = _val;
+            if (m_swingWorker != null) {
+                try {
+                    Thread.sleep(10);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                m_swingWorker.myPublish(new Quadruplet(_i, _j, _val,m_largeur));
+            }
+        }
     }
 
     //--------------------------------------------------------------------------
@@ -259,7 +284,7 @@ public class LogicPicGrid implements Serializable {
             }
             for (int j = 0; j < m_largeur; j++) {
                 if (result[j] != s_VIDE) {
-                    m_tableau[i][j] = result[j];
+                    set(i, j, result[j]);
                 }
             }
         }
@@ -297,7 +322,7 @@ public class LogicPicGrid implements Serializable {
             }
             for (int i = 0; i < m_hauteur; i++) {
                 if (result[i] != s_VIDE) {
-                    m_tableau[i][j] = result[i];
+                    set(i, j, result[i]);
                 }
             }
         }
@@ -320,10 +345,10 @@ public class LogicPicGrid implements Serializable {
                 for (int idx = 0; idx < num; idx++) {
                     if(idx == 0)
                         debut = j;
-                    switch (m_tableau[i][j]) {
+                    switch (get(i, j)) {
                         case s_VIDE:
                             if (trouve != 0) {
-                                m_tableau[i][j] = s_PLEIN;
+                                set(i, j, s_PLEIN);
                                 modifie = true;
                             }else {
                                 vide++;
@@ -335,7 +360,7 @@ public class LogicPicGrid implements Serializable {
                         case s_BLOQUE:
                             //si bloqué, impossible de caser le segment
                             for(int k = debut; k < j; k++)
-                                m_tableau[i][k] = s_BLOQUE;
+                                set(i, k, s_BLOQUE);
                             if(j!=debut)
                                 modifie = true;
                             idx = -1;
@@ -344,14 +369,14 @@ public class LogicPicGrid implements Serializable {
                     }
                     j++;
                 }
-                while(j < m_largeur && m_tableau[i][j] == s_PLEIN){
-                    m_tableau[i][debut] = s_BLOQUE;
+                while(j < m_largeur && get(i, j) == s_PLEIN){
+                    set(i, debut, s_BLOQUE);
                     modifie = true;
                     j++;
                 }
                 if (j < m_largeur && vide == 0) {
-                    if(m_tableau[i][j] != s_BLOQUE) {
-                        m_tableau[i][j] = s_BLOQUE;
+                    if(get(i, j) != s_BLOQUE) {
+                        set(i, j, s_BLOQUE);
                         modifie = true;
                     }
                     j++;
@@ -371,10 +396,10 @@ public class LogicPicGrid implements Serializable {
                 for (int idx = 0; idx < num; idx++) {
                     if(idx == 0)
                         debut = j;
-                    switch (m_tableau[i][j]) {
+                    switch (get(i, j)) {
                         case s_VIDE:
                             if (trouve != 0) {
-                                m_tableau[i][j] = s_PLEIN;
+                                set(i, j, s_PLEIN);
                                 modifie = true;
                             } else {
                                 vide++;
@@ -386,7 +411,7 @@ public class LogicPicGrid implements Serializable {
                         case s_BLOQUE:
                             //si bloqué, impossible de caser le segment
                             for(int k = debut; k > j; k--)
-                                m_tableau[i][k] = s_BLOQUE;
+                                set(i, k, s_BLOQUE);
                             if(j!=debut)
                                 modifie = true;
                             idx = -1;
@@ -395,14 +420,14 @@ public class LogicPicGrid implements Serializable {
                     }
                     j--;
                 }
-                while(j >= 0 && m_tableau[i][j] == s_PLEIN){
-                    m_tableau[i][debut] = s_BLOQUE;
+                while(j >= 0 && get(i, j) == s_PLEIN){
+                    set(i, debut, s_BLOQUE);
                     modifie = true;
                     j--;
                 }
                 if (j >= 0 && vide == 0) {
-                    if(m_tableau[i][j] != s_BLOQUE) {
-                        m_tableau[i][j] = s_BLOQUE;
+                    if(get(i, j) != s_BLOQUE) {
+                        set(i, j, s_BLOQUE);
                         modifie = true;
                     }
                     j--;
@@ -425,10 +450,10 @@ public class LogicPicGrid implements Serializable {
                 for (int idx = 0; idx < num; idx++) {
                     if(idx == 0)
                         debut = i;
-                    switch (m_tableau[i][j]) {
+                    switch (get(i, j)) {
                         case s_VIDE:
                             if (trouve != 0) {
-                                m_tableau[i][j] = s_PLEIN;
+                                set(i, j, s_PLEIN);
                                 modifie = true;
                             }else{
                                 vide ++;
@@ -440,7 +465,7 @@ public class LogicPicGrid implements Serializable {
                         case s_BLOQUE:
                             //si bloqué, impossible de caser le segment
                             for(int k = debut; k < i; k++)
-                                m_tableau[k][j] = s_BLOQUE;
+                                set(k, j, s_BLOQUE);
                             if(i!=debut)
                                 modifie = true;
                             idx = -1;
@@ -449,14 +474,14 @@ public class LogicPicGrid implements Serializable {
                     }
                     i++;
                 }
-                while(i < m_hauteur && m_tableau[i][j] == s_PLEIN){
-                    m_tableau[debut][j] = s_BLOQUE;
+                while(i < m_hauteur && get(i, j) == s_PLEIN){
+                    set(debut, j, s_BLOQUE);
                     modifie = true;
                     i++;
                 }
                 if (i < m_hauteur && vide == 0) {
-                    if(m_tableau[i][j] != s_BLOQUE) {
-                        m_tableau[i][j] = s_BLOQUE;
+                    if(get(i, j) != s_BLOQUE) {
+                        set(i, j, s_BLOQUE);
                         modifie = true;
                     }
                     i++;
@@ -475,10 +500,10 @@ public class LogicPicGrid implements Serializable {
                 for (int idx = 0; idx < num; idx++) {
                     if(idx == 0)
                         debut = i;
-                    switch (m_tableau[i][j]) {
+                    switch (get(i, j)) {
                         case s_VIDE:
                             if (trouve != 0) {
-                                m_tableau[i][j] = s_PLEIN;
+                                set(i, j, s_PLEIN);
                                 modifie = true;
                             }else {
                                 vide++;
@@ -490,7 +515,7 @@ public class LogicPicGrid implements Serializable {
                         case s_BLOQUE:
                             //si bloqué, impossible de caser le segment
                             for(int k = debut; k > i; k--)
-                                m_tableau[k][j] = s_BLOQUE;
+                                set(k, j, s_BLOQUE);
                             if(i!=debut)
                                 modifie = true;
                             idx = -1;
@@ -499,14 +524,14 @@ public class LogicPicGrid implements Serializable {
                     }
                     i--;
                 }
-                while(i >= 0 && m_tableau[i][j] == s_PLEIN){
-                    m_tableau[debut][j] = s_BLOQUE;
+                while(i >= 0 && get(i, j) == s_PLEIN){
+                    set(debut, j, s_BLOQUE);
                     modifie = true;
                     i--;
                 }
                 if (i >= 0 && vide == 0) {
-                    if(m_tableau[i][j] != s_BLOQUE) {
-                        m_tableau[i][j] = s_BLOQUE;
+                    if(get(i, j) != s_BLOQUE) {
+                        set(i, j, s_BLOQUE);
                         modifie = true;
                     }
                     i--;
@@ -535,10 +560,10 @@ public class LogicPicGrid implements Serializable {
             espacesLibre = new ArrayList<>();
             debut = false;
             for (int j = 0; j < m_largeur; j++){
-                if(!debut && m_tableau[i][j] != s_BLOQUE){
+                if(!debut && get(i, j) != s_BLOQUE){
                     debut = true;
                     idxDebut = j;
-                }else if(debut && m_tableau[i][j] == s_BLOQUE){
+                }else if(debut && get(i, j) == s_BLOQUE){
                     debut = false;
                     espacesLibre.add(new Segment(idxDebut,j-1));
                 }
@@ -558,10 +583,10 @@ public class LogicPicGrid implements Serializable {
             espacesLibre = new ArrayList<>();
             debut = false;
             for (int i = 0; i < m_hauteur; i++){
-                if(!debut && m_tableau[i][j] != s_BLOQUE){
+                if(!debut && get(i, j) != s_BLOQUE){
                     debut = true;
                     idxDebut = i;
-                }else if(debut && m_tableau[i][j] == s_BLOQUE){
+                }else if(debut && get(i, j) == s_BLOQUE){
                     debut = false;
                     espacesLibre.add(new Segment(idxDebut,i-1));
                 }
@@ -582,9 +607,9 @@ public class LogicPicGrid implements Serializable {
         for(int i = 0; i < m_hauteur;i++){
             if(verifLigne(i)){
                 for(int j = 0; j < m_largeur;j++){
-                    if(m_tableau[i][j] == s_VIDE){
+                    if(get(i, j) == s_VIDE){
                         modifie = true;
-                        m_tableau[i][j] = s_BLOQUE;
+                        set(i, j, s_BLOQUE);
                     }
                 }
             }
@@ -592,9 +617,9 @@ public class LogicPicGrid implements Serializable {
         for (int j = 0; j < m_largeur; j++) {
             if(verifColonne(j)){
                 for(int i = 0; i < m_hauteur;i++){
-                    if(m_tableau[i][j] == s_VIDE){
+                    if(get(i, j) == s_VIDE){
                         modifie = true;
-                        m_tableau[i][j] = s_BLOQUE;
+                        set(i, j, s_BLOQUE);
                     }
                 }
             }
@@ -606,10 +631,10 @@ public class LogicPicGrid implements Serializable {
 
     public boolean debile(int _i, int _j){
         if(_i == (m_hauteur-1) && _j == (m_largeur-1)){
-            if(m_tableau[_i][_j] == s_VIDE) {
-                m_tableau[_i][_j] = s_PLEIN;
+            if(get(_i, _j) == s_VIDE) {
+                set(_i, _j, s_PLEIN);
                 if (verification()) return true;
-                m_tableau[_i][_j] = s_VIDE;
+                set(_i, _j, s_VIDE);
                 return verification();
             }else{
                 return verification();
@@ -617,10 +642,10 @@ public class LogicPicGrid implements Serializable {
         }else{
             int i1 = (_j == (m_largeur-1))? _i+1 : _i;
             int j1 = (_j+1)%m_largeur;
-            if(m_tableau[_i][_j] == s_VIDE) {
-                m_tableau[_i][_j] = s_PLEIN;
+            if(get(_i, _j) == s_VIDE) {
+                set(_i, _j, s_PLEIN);
                 if (debile(i1, j1)) return true;
-                m_tableau[_i][_j] = s_VIDE;
+                set(_i, _j, s_VIDE);
                 return debile(i1, j1);
             }else{
                 return debile(i1, j1);
@@ -631,18 +656,18 @@ public class LogicPicGrid implements Serializable {
     public boolean moindebile(int _i, int _j){
         if(_i == (m_hauteur-1)){
             //System.out.println("fin de colonne : "+_i +" "+_j);
-            m_tableau[_i][_j] = s_PLEIN;
+            set(_i, _j, s_PLEIN);
             if(!verifColonne(_j)){
-                m_tableau[_i][_j] = s_VIDE;
+                set(_i, _j, s_VIDE);
                 if(!verifColonne(_j)) return false;
             }
         }
         if(_j == (m_largeur-1)){
 
             //System.out.println("fin de ligne : "+_i +" "+_j);
-            m_tableau[_i][_j] = s_PLEIN;
+            set(_i, _j, s_PLEIN);
             if(!verifLigne(_i)){
-                m_tableau[_i][_j] = s_VIDE;
+                set(_i, _j, s_VIDE);
                 if(!verifLigne(_i)) return false;
             }
             if(_i == (m_hauteur-1)) return true;
@@ -650,9 +675,9 @@ public class LogicPicGrid implements Serializable {
 
         int i1 = (_j == (m_largeur-1))? _i+1 : _i;
         int j1 = (_j+1)%m_largeur;
-        m_tableau[_i][_j] = s_PLEIN;
+        set(_i, _j, s_PLEIN);
         if(moindebile(i1,j1)) return true;
-        m_tableau[_i][_j] = s_VIDE;
+        set(_i, _j, s_VIDE);
         return moindebile(i1,j1);
     }
 
@@ -678,12 +703,12 @@ public class LogicPicGrid implements Serializable {
         }
         for(int i = 0; i < m_hauteur;i++){
             for(int j = 0; j < m_largeur; j++){
-                switch(m_tableau[i][j]){
+                switch(get(i, j)){
                     case s_PLEIN :
-                        m_tableau[i][j] = s_FINAL;
+                        set(i, j, s_FINAL);
                         break;
                     case s_BLOQUE :
-                        m_tableau[i][j] = s_VIDE;
+                        set(i, j, s_VIDE);
                         break;
                 }
             }
@@ -696,10 +721,10 @@ public class LogicPicGrid implements Serializable {
         boolean debut = true;
         ArrayList<Integer> ligne = new ArrayList<>();
         for (int j = 0; j < m_largeur; j++) {
-            if (debut && m_tableau[_i][j] == s_PLEIN) {
+            if (debut && get(_i, j) == s_PLEIN) {
                 idxDebut = j;
                 debut = false;
-            } else if (!debut && m_tableau[_i][j] != s_PLEIN) {
+            } else if (!debut && get(_i, j) != s_PLEIN) {
                 ligne.add(j-idxDebut);
                 debut = true;
             }
@@ -715,10 +740,10 @@ public class LogicPicGrid implements Serializable {
         boolean debut = true;
         ArrayList<Integer> colonne = new ArrayList<>();
         for(int i = 0; i < m_hauteur; i++){
-            if(debut && m_tableau[i][_j] == s_PLEIN){
+            if(debut && get(i, _j) == s_PLEIN){
                 idxDebut = i;
                 debut = false;
-            }else if(!debut && m_tableau[i][_j] != s_PLEIN){
+            }else if(!debut && get(i, _j) != s_PLEIN){
                 colonne.add(i-idxDebut);
                 debut = true;
             }
@@ -734,7 +759,7 @@ public class LogicPicGrid implements Serializable {
             int j = 0;
             for (Segment seg : _liste) {
                 for (j = seg.m_debut; j <= seg.m_fin; j++)
-                    m_tableau[_i][j] = s_PLEIN;
+                    set(_i, j, s_PLEIN);
             }
         }
     }
@@ -744,7 +769,7 @@ public class LogicPicGrid implements Serializable {
             int i = 0;
             for (Segment seg : _liste) {
                 for (i = seg.m_debut; i <= seg.m_fin; i++)
-                    m_tableau[i][_j] = s_PLEIN;
+                    set(i, _j, s_PLEIN);
             }
         }
     }

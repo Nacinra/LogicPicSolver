@@ -1,5 +1,5 @@
 package GUI;
 
-public interface InterfaceBoutton {
+public interface InterfaceAction {
     void methode();
 }
