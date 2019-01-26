@@ -13,10 +13,10 @@ public class Outils {
     }
 
     static ArrayList<Segment> combinaisonGagnante(ArrayList<Segment> _espacesLibre, ArrayList<Integer> _resteAPlacer){
-        ArrayList<Segment> result = new ArrayList<>(),temp1,result1,result2;
+        ArrayList<Segment> temp1,result1,result2;
         ArrayList<Integer> temp2;
         if(_resteAPlacer.size() == 0) //tout est placé c'est bon :)
-            return result;
+            return new ArrayList<>();
         if(_espacesLibre.size() == 0)
             return null;
 
@@ -61,7 +61,7 @@ public class Outils {
         return result;
     }
 
-    private static ArrayList<Segment> mergeSeg(ArrayList<Segment> _liste1, ArrayList<Segment> _liste2){
+    public static ArrayList<Segment> mergeSeg(ArrayList<Segment> _liste1, ArrayList<Segment> _liste2){
         if(_liste1 == null)
             return _liste2;
         if(_liste2 == null)
@@ -86,13 +86,110 @@ public class Outils {
                     result.add(new Segment(seg1.m_debut,seg2.m_fin));
                 }
             }else if(seg1.m_debut < seg2.m_debut){
-                i++;
-                result.add(new Segment(seg2.m_debut,seg1.m_fin));
+                if(seg1.m_fin < seg2.m_fin){
+                    i++;
+                    result.add(new Segment(seg2.m_debut,seg1.m_fin));
+                }else{
+                    j++;
+                    result.add(new Segment(seg2.m_debut,seg2.m_fin));
+                }
             }else {
-                j++;
-                result.add(new Segment(seg1.m_debut,seg2.m_fin));
+                if(seg1.m_fin < seg2.m_fin){
+                    i++;
+                    result.add(new Segment(seg1.m_debut,seg1.m_fin));
+                }else{
+                    j++;
+                    result.add(new Segment(seg1.m_debut,seg2.m_fin));
+                }
             }
         }
         return result;
     }
+
+    static ArrayList<ArrayList<Segment>> combinaisons(ArrayList<Segment> _espacesLibre, ArrayList<Integer> _resteAPlacer) {
+        ArrayList<ArrayList<Segment>> result1, result2;
+        ArrayList<Segment> temp1;
+        ArrayList<Integer> temp2;
+        if (_resteAPlacer.size() == 0) {//tout est placé c'est bon :)
+            result1 = new ArrayList<>();
+            result1.add(new ArrayList<>());
+            return result1;
+        }
+        if (_espacesLibre.size() == 0)
+            return null;
+
+        if (_resteAPlacer.get(0) > _espacesLibre.get(0).m_longeur) {
+            temp1 = clonnageSeg(_espacesLibre);
+            temp1.remove(0);
+            return combinaisons(temp1, _resteAPlacer);
+        } else {
+            temp1 = clonnageSeg(_espacesLibre);
+            temp1.get(0).reduire(_resteAPlacer.get(0) + 1);
+            temp2 = clonnageInt(_resteAPlacer);
+            temp2.remove(0);
+            result1 = combinaisons(temp1, temp2);
+            if (result1 == null) {
+                return null;
+            }
+            int debut = _espacesLibre.get(0).m_debut;
+            int fin = debut + _resteAPlacer.get(0) - 1;
+            ajouterSegmentDebut(result1, debut, fin);
+
+            temp1 = clonnageSeg(_espacesLibre);
+            temp1.get(0).reduire(1);
+            result2 = combinaisons(temp1, _resteAPlacer);
+            if(result2 != null)
+                result1.addAll(result2);
+            return result1;
+        }
+    }
+
+    static void ajouterSegmentDebut(ArrayList<ArrayList<Segment>> _listes,int _debut, int _fin){
+        for(ArrayList<Segment> liste : _listes){
+            liste.add(0, new Segment(_debut, _fin));
+        }
+    }
+
+    public static ArrayList<ArrayList<Segment>> suppressionCombinaisons(ArrayList<ArrayList<Segment>> _listes, ArrayList<Segment> _espacesPlein){
+        ArrayList<ArrayList<Segment>> result = new ArrayList<>();
+        for(ArrayList<Segment> liste : _listes){
+            int i = 0, j = 0;
+            while(i < _espacesPlein.size() && j < liste.size()) {
+                Segment seg1 = _espacesPlein.get(i);
+                Segment seg2 = liste.get(j);
+
+                if (seg1.m_debut < seg2.m_debut) {
+                    break;
+                } else if (seg1.m_fin <= seg2.m_fin) {
+                    i++;
+                } else {
+                    j++;
+                }
+            }
+            if(i == _espacesPlein.size()){
+                result.add(liste);
+            }
+        }
+        return result;
+    }
+
+    public static ArrayList<ArrayList<Segment>> inversionCombinaisons(ArrayList<ArrayList<Segment>> _listes, int _max){
+        ArrayList<ArrayList<Segment>> result = new ArrayList<>();
+        for(ArrayList<Segment> liste : _listes){
+            ArrayList<Segment> temp = new ArrayList<>();
+            int idxDebut = 0;
+            for(Segment seg : liste){
+                if(idxDebut != seg.m_debut){
+                    temp.add(new Segment(idxDebut, seg.m_debut-1));
+                }
+                idxDebut = seg.m_fin + 1;
+            }
+            if(idxDebut < _max){
+                temp.add(new Segment(idxDebut, _max-1));
+            }
+            result.add(temp);
+        }
+        return result;
+    }
+
 }
