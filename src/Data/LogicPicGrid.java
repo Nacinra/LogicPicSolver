@@ -28,7 +28,8 @@ public class LogicPicGrid implements Serializable {
     transient public static final int s_BLOQUE = 2;
     transient public static final int s_FINAL = 3;
 
-    public MySwingWorker m_swingWorker = null;
+    public transient MySwingWorker m_swingWorker = null;
+    public transient boolean m_modePasAPas = false;
     private boolean m_modification = false;
 
     //--------------------------------------------------------------------------
@@ -547,7 +548,7 @@ public class LogicPicGrid implements Serializable {
         }
 
         //Réentrance si modification durant la phase
-        if(modifie)
+        if(modifie && !m_modePasAPas)
             phaseBordure();
     }
 
@@ -598,7 +599,7 @@ public class LogicPicGrid implements Serializable {
             }
         }
 
-        if(modifie)
+        if(modifie && !m_modePasAPas)
             phaseComptage();
     }
 
@@ -697,7 +698,7 @@ public class LogicPicGrid implements Serializable {
         }catch(Exception e) {
             e.printStackTrace();
         }
-        if(m_modification)
+        if(m_modification && !m_modePasAPas)
             magie();
     }
 

@@ -4,6 +4,10 @@ import javax.swing.*;
 import Data.LogicPicGrid;
 import sun.rmi.runtime.Log;
 
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
+import java.awt.event.KeyEvent;
+
 public class SelectionBouton extends JFrame {
 
     public static SelectionBouton s_singleton = null;
@@ -38,6 +42,16 @@ public class SelectionBouton extends JFrame {
         //Boutons débiles
         result.mainPanel.add(new Boutton("Debile",() -> LogicPicGrid.getSingleton().debile(0,0)));
         result.mainPanel.add(new Boutton("Moin Debile",() -> LogicPicGrid.getSingleton().moindebile(0,0)));
+
+        JCheckBox checkBox = new JCheckBox("Mode pas a pas");
+        checkBox.setSelected(false);
+        checkBox.addItemListener(e -> {
+            if(e.getStateChange() == ItemEvent.SELECTED)
+                LogicPicGrid.getSingleton().m_modePasAPas = true;
+            else
+                LogicPicGrid.getSingleton().m_modePasAPas = false;
+        });
+        result.mainPanel.add(checkBox);
 
         result.setVisible(true);
         s_singleton = result;
