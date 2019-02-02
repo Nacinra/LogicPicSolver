@@ -4,6 +4,7 @@ import java.util.ArrayList;
 
 public class Outils {
     static boolean compareArray(ArrayList<Integer> _l1, ArrayList<Integer> _l2){
+        if(_l1 == null || _l2 == null) return false;
         if(_l1 .size() != _l2.size()) return false;
         int max = _l2.size();
         for(int i = 0; i < max; i++){
@@ -13,6 +14,9 @@ public class Outils {
     }
 
     static ArrayList<Segment> combinaisonGagnante(ArrayList<Segment> _espacesLibre, ArrayList<Integer> _resteAPlacer){
+        if(_espacesLibre == null || _resteAPlacer == null)
+            return null;
+
         ArrayList<Segment> temp1,result1,result2;
         ArrayList<Integer> temp2;
         if(_resteAPlacer.size() == 0) //tout est placé c'est bon :)
@@ -46,6 +50,9 @@ public class Outils {
     }
 
     private static ArrayList clonnageSeg(ArrayList<Segment> _liste){
+        if(_liste == null)
+            return null;
+
         ArrayList<Segment> result = new ArrayList<>();
         for(Segment seg : _liste){
             result.add(new Segment(seg.m_debut,seg.m_fin));
@@ -54,6 +61,9 @@ public class Outils {
     }
 
     private static ArrayList clonnageInt(ArrayList<Integer> _liste){
+        if(_liste == null)
+            return null;
+
         ArrayList<Integer> result = new ArrayList<>();
         for(Integer val : _liste){
             result.add(new Integer(val));
@@ -107,6 +117,9 @@ public class Outils {
     }
 
     static ArrayList<ArrayList<Segment>> combinaisons(ArrayList<Segment> _espacesLibre, ArrayList<Integer> _resteAPlacer) {
+        if(_espacesLibre == null || _resteAPlacer == null)
+            return null;
+
         ArrayList<ArrayList<Segment>> result1, result2;
         ArrayList<Segment> temp1;
         ArrayList<Integer> temp2;
@@ -145,12 +158,18 @@ public class Outils {
     }
 
     static void ajouterSegmentDebut(ArrayList<ArrayList<Segment>> _listes,int _debut, int _fin){
+        if(_listes == null)
+            return;
+
         for(ArrayList<Segment> liste : _listes){
             liste.add(0, new Segment(_debut, _fin));
         }
     }
 
     public static ArrayList<ArrayList<Segment>> suppressionCombinaisons(ArrayList<ArrayList<Segment>> _listes, ArrayList<Segment> _espacesPlein){
+        if(_listes == null ||_espacesPlein == null)
+            return null;
+
         ArrayList<ArrayList<Segment>> result = new ArrayList<>();
         for(ArrayList<Segment> liste : _listes){
             int i = 0, j = 0;
@@ -174,6 +193,9 @@ public class Outils {
     }
 
     public static ArrayList<ArrayList<Segment>> inversionCombinaisons(ArrayList<ArrayList<Segment>> _listes, int _max){
+        if(_listes == null)
+            return null;
+
         ArrayList<ArrayList<Segment>> result = new ArrayList<>();
         for(ArrayList<Segment> liste : _listes){
             ArrayList<Segment> temp = new ArrayList<>();
