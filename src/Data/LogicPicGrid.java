@@ -1,14 +1,11 @@
 package Data;
-import GUI.MainFrame;
 import GUI.MySwingWorker;
 
-import javax.swing.*;
 import java.io.*;
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Scanner;
 
-import static Data.Outils.mergeSeg;
+import static Data.Outils.combinaisons;
 
 public class LogicPicGrid implements Serializable {
 
@@ -627,32 +624,22 @@ public class LogicPicGrid implements Serializable {
         }
     }
 
-    public boolean moindebile(int _i, int _j){
-        if(_i == (m_hauteur-1)){
-            //System.out.println("fin de colonne : "+_i +" "+_j);
-            set(_i, _j, s_PLEIN);
-            if(!verifColonne(_j)){
-                set(_i, _j, s_VIDE);
-                if(!verifColonne(_j)) return false;
+    public boolean moindebile(int _i){
+        if(_i == m_hauteur){
+            return verification();
+        } else {
+            ArrayList<Integer> valeurs = m_lignes.get(_i);
+            ArrayList<Segment> vide = new ArrayList<>();
+            vide.add(new Segment(0, m_largeur - 1));
+            for (ArrayList<Segment> combinaison : combinaisons(vide, valeurs)) {
+                remplirLigne(vide, _i, s_VIDE);
+                remplirLigne(combinaison, _i, s_PLEIN);
+                if (moindebile(_i + 1)){
+                    return true;
+                }
             }
+            return false;
         }
-        if(_j == (m_largeur-1)){
-
-            //System.out.println("fin de ligne : "+_i +" "+_j);
-            set(_i, _j, s_PLEIN);
-            if(!verifLigne(_i)){
-                set(_i, _j, s_VIDE);
-                if(!verifLigne(_i)) return false;
-            }
-            if(_i == (m_hauteur-1)) return true;
-        }
-
-        int i1 = (_j == (m_largeur-1))? _i+1 : _i;
-        int j1 = (_j+1)%m_largeur;
-        set(_i, _j, s_PLEIN);
-        if(moindebile(i1,j1)) return true;
-        set(_i, _j, s_VIDE);
-        return moindebile(i1,j1);
     }
 
     public void magie(){

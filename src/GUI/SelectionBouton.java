@@ -41,7 +41,7 @@ public class SelectionBouton extends JFrame {
 
         //Boutons débiles
         result.mainPanel.add(new Boutton("Debile",() -> LogicPicGrid.getSingleton().debile(0,0)));
-        result.mainPanel.add(new Boutton("Moin Debile",() -> LogicPicGrid.getSingleton().moindebile(0,0)));
+        result.mainPanel.add(new Boutton("Moin Debile",() -> LogicPicGrid.getSingleton().moindebile(0)));
 
         JCheckBox checkBox = new JCheckBox("Mode pas a pas");
         checkBox.setSelected(false);
