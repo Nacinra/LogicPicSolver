@@ -1,6 +1,7 @@
 package Data;
 import GUI.MySwingWorker;
 
+import javax.swing.*;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -16,7 +17,7 @@ public class LogicPicGrid implements Serializable {
     transient private ArrayList<ArrayList<Integer>> m_Tcolonnes = new ArrayList<>();
     transient private ArrayList<ArrayList<Integer>> m_Tlignes = new ArrayList<>();
     private static final long serialVersionUID = 2L;
-    private static final String s_savePath = "save/";
+    private static final String s_savePath = "./save/";
 
     public int m_largeur = 0;
     public int m_hauteur = 0;
@@ -51,20 +52,24 @@ public class LogicPicGrid implements Serializable {
                 System.out.print("recuperer une configuration [O/N] ? ");
                 reponse = sc.nextLine();
                 if (reponse.compareTo("O") == 0) {
-                    System.out.print("nom du fichier : ");
-                    String file_name = sc.nextLine();
-                    File file = new File(s_savePath + file_name);
-                    if (!file.exists()) {
-                        System.out.println("fichier inexistant");
-                    }
-                    try {
-                        result = (LogicPicGrid) (new ObjectInputStream((new FileInputStream(file)))).readObject();
-                        result.afficherCaracteristique();
-                        finish = true;
-                    } catch (IOException | ClassNotFoundException e) {
-                        System.out.println("erreur lors du chargement");
-                    }
 
+                    JFileChooser choix = new JFileChooser();
+                    choix.setCurrentDirectory(new File(s_savePath));
+                    int retour=choix.showOpenDialog(null);
+
+                    if(retour==JFileChooser.APPROVE_OPTION){
+                        File file = choix.getSelectedFile().getAbsoluteFile();
+                        if (!file.exists()) {
+                            System.out.println("fichier inexistant");
+                        }
+                        try {
+                            result = (LogicPicGrid) (new ObjectInputStream((new FileInputStream(file)))).readObject();
+                            result.afficherCaracteristique();
+                            finish = true;
+                        } catch (IOException | ClassNotFoundException e) {
+                            System.out.println("erreur lors du chargement");
+                        }
+                    }
                 } else if (reponse.compareTo("N") == 0) {
                     result = new LogicPicGrid();
                     result.recupInput(sc);
