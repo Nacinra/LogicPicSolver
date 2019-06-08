@@ -3,6 +3,7 @@ import GUI.MySwingWorker;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Scanner;
 
 import static Data.Outils.combinaisons;
@@ -27,7 +28,9 @@ public class LogicPicGrid implements Serializable {
 
     public transient MySwingWorker m_swingWorker = null;
     public transient boolean m_modePasAPas = false;
-    private boolean m_modification = false;
+    private transient boolean m_modification = false;
+
+    private transient ArrayList<Etape> m_etapes = new ArrayList<>();
 
     //--------------------------------------------------------------------------
     //------              Création Utilisation de la grille               ------
@@ -110,6 +113,15 @@ public class LogicPicGrid implements Serializable {
                 for(int i = colonne.size()-1; i >= 0; i--)
                     Tcolonne.add(colonne.get(i));
                 result.m_Tcolonnes.add(Tcolonne);
+            }
+
+            result.m_etapes = new ArrayList<>();
+            for (int i = 0; i < result.m_hauteur; i++){
+                result.addEtape(Etape.Sens.LIGNE, i);
+            }
+
+            for (int j = 0; j < result.m_largeur; j++){
+                result.addEtape(Etape.Sens.COLONNE, j);
             }
 
             s_singleton = result;
@@ -223,10 +235,15 @@ public class LogicPicGrid implements Serializable {
     }
 
     public void reset() {
-        for (int i = 0; i < m_hauteur; i++)
+        for (int i = 0; i < m_hauteur; i++) {
+            addEtape(Etape.Sens.LIGNE, i);
             for (int j = 0; j < m_largeur; j++)
                 set(i, j, s_VIDE);
+        }
 
+        for (int j = 0; j < m_largeur; j++) {
+            addEtape(Etape.Sens.COLONNE, j);
+        }
     }
 
     private int get(int _i, int _j){
@@ -237,9 +254,11 @@ public class LogicPicGrid implements Serializable {
         if(get(_i, _j) != _val) {
             m_tableau[_i][_j] = _val;
             m_modification = true;
+            addEtape(Etape.Sens.LIGNE, _i);
+            addEtape(Etape.Sens.COLONNE, _j);
             if (m_swingWorker != null) {
                 try {
-                    Thread.sleep(10);
+                    Thread.sleep(2);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -248,357 +267,16 @@ public class LogicPicGrid implements Serializable {
         }
     }
 
+    private void addEtape(Etape.Sens _sens, int _idex){
+        Etape current = new Etape(_sens, _idex);
+        if(!m_etapes.contains(current)){
+            m_etapes.add(current);
+        }
+    }
+
     //--------------------------------------------------------------------------
     //------                     Phases de résolution                     ------
     //--------------------------------------------------------------------------
-    //phase 0, mise en place des espaces par défaut
-    public void phase0() {
-        for (int i = 0; i < m_hauteur; i++) {
-            ArrayList<Integer> ligne = m_lignes.get(i);
-            int result[] = new int[m_largeur];
-            int idx = 0;
-            for (int val : ligne) {
-                for (int j = 0; j < val; j++)
-                    result[idx + j] = s_PLEIN;
-                idx += val + 1;
-            }
-            idx--;
-            int delta = m_largeur - idx;
-            if (delta == 0) {
-                for (int j = 0; j < m_largeur; j++) {
-                    if (result[j] == s_VIDE) {
-                        result[j] = s_BLOQUE;
-                    }
-                }
-            } else {
-                int idxDebut = 0;
-                boolean debut = true;
-                for (int j = 0; j < m_largeur; j++) {
-                    if (debut && result[j] == s_PLEIN) {
-                        idxDebut = j;
-                        debut = false;
-                    } else if (!debut && result[j] == s_VIDE) {
-                        for (int k = idxDebut; k < delta + idxDebut && k < j; k++)
-                            result[k] = s_VIDE;
-                        debut = true;
-                    }
-                }
-            }
-            for (int j = 0; j < m_largeur; j++) {
-                if (result[j] != s_VIDE) {
-                    set(i, j, result[j]);
-                }
-            }
-        }
-
-        for (int j = 0; j < m_largeur; j++) {
-            ArrayList<Integer> colonne = m_colonnes.get(j);
-            int result[] = new int[m_hauteur];
-            int idx = 0;
-            for (int val : colonne) {
-                for (int i = 0; i < val; i++)
-                    result[idx + i] = s_PLEIN;
-                idx += val + 1;
-            }
-            idx--;
-            int delta = m_hauteur - idx;
-            if (delta == 0) {
-                for (int i = 0; i < m_hauteur; i++) {
-                    if (result[i] == s_VIDE) {
-                        result[i] = s_BLOQUE;
-                    }
-                }
-            } else {
-                int idxDebut = 0;
-                boolean debut = true;
-                for (int i = 0; i < m_hauteur; i++) {
-                    if (debut && result[i] == s_PLEIN) {
-                        idxDebut = i;
-                        debut = false;
-                    } else if (!debut && result[i] == s_VIDE) {
-                        for (int k = idxDebut; k < delta + idxDebut && k < i; k++)
-                            result[k] = s_VIDE;
-                        debut = true;
-                    }
-                }
-            }
-            for (int i = 0; i < m_hauteur; i++) {
-                if (result[i] != s_VIDE) {
-                    set(i, j, result[i]);
-                }
-            }
-        }
-    }
-
-    //phase de remplissage des bordures
-    public void phaseBordure(){
-        boolean modifie = false;
-        int i,j,vide,debut,trouve;
-
-        //pour chaque ligne
-        for (i = 0; i < m_hauteur; i++) {
-
-            //region debut de la ligne
-            j = 0;
-            debut = j;
-            for (Integer num : m_lignes.get(i)) {
-                trouve = 0;
-                vide = 0;
-                for (int idx = 0; idx < num; idx++) {
-                    if(idx == 0)
-                        debut = j;
-                    switch (get(i, j)) {
-                        case s_VIDE:
-                            if (trouve != 0) {
-                                set(i, j, s_PLEIN);
-                                modifie = true;
-                            }else {
-                                vide++;
-                            }
-                            break;
-                        case s_PLEIN:
-                            trouve++;
-                            break;
-                        case s_BLOQUE:
-                            //si bloqué, impossible de caser le segment
-                            for(int k = debut; k < j; k++)
-                                set(i, k, s_BLOQUE);
-                            if(j!=debut)
-                                modifie = true;
-                            idx = -1;
-                            vide = 0;
-                            break;
-                    }
-                    j++;
-                }
-                while(j < m_largeur && get(i, j) == s_PLEIN){
-                    set(i, debut, s_BLOQUE);
-                    modifie = true;
-                    j++;
-                }
-                if (j < m_largeur && vide == 0) {
-                    if(get(i, j) != s_BLOQUE) {
-                        set(i, j, s_BLOQUE);
-                        modifie = true;
-                    }
-                    j++;
-
-                } else {
-                    break;
-                }
-            }
-            //endregion
-
-            //region fin de la ligne
-            j = m_largeur-1;
-            debut = j;
-            for (Integer num : m_Tlignes.get(i)) {
-                trouve = 0;
-                vide = 0;
-                for (int idx = 0; idx < num; idx++) {
-                    if(idx == 0)
-                        debut = j;
-                    switch (get(i, j)) {
-                        case s_VIDE:
-                            if (trouve != 0) {
-                                set(i, j, s_PLEIN);
-                                modifie = true;
-                            } else {
-                                vide++;
-                            }
-                            break;
-                        case s_PLEIN:
-                            trouve++;
-                            break;
-                        case s_BLOQUE:
-                            //si bloqué, impossible de caser le segment
-                            for(int k = debut; k > j; k--)
-                                set(i, k, s_BLOQUE);
-                            if(j!=debut)
-                                modifie = true;
-                            idx = -1;
-                            vide = 0;
-                            break;
-                    }
-                    j--;
-                }
-                while(j >= 0 && get(i, j) == s_PLEIN){
-                    set(i, debut, s_BLOQUE);
-                    modifie = true;
-                    j--;
-                }
-                if (j >= 0 && vide == 0) {
-                    if(get(i, j) != s_BLOQUE) {
-                        set(i, j, s_BLOQUE);
-                        modifie = true;
-                    }
-                    j--;
-                } else {
-                    break;
-                }
-            }
-            //endregion
-        }
-
-        //pour chaque colonne
-        for (j = 0; j < m_largeur; j++) {
-
-            //region debut de la colonne
-            i = 0;
-            debut = i;
-            for (Integer num : m_colonnes.get(j)) {
-                trouve = 0;
-                vide = 0;
-                for (int idx = 0; idx < num; idx++) {
-                    if(idx == 0)
-                        debut = i;
-                    switch (get(i, j)) {
-                        case s_VIDE:
-                            if (trouve != 0) {
-                                set(i, j, s_PLEIN);
-                                modifie = true;
-                            }else{
-                                vide ++;
-                            }
-                            break;
-                        case s_PLEIN:
-                            trouve++;
-                            break;
-                        case s_BLOQUE:
-                            //si bloqué, impossible de caser le segment
-                            for(int k = debut; k < i; k++)
-                                set(k, j, s_BLOQUE);
-                            if(i!=debut)
-                                modifie = true;
-                            idx = -1;
-                            vide = 0;
-                            break;
-                    }
-                    i++;
-                }
-                while(i < m_hauteur && get(i, j) == s_PLEIN){
-                    set(debut, j, s_BLOQUE);
-                    modifie = true;
-                    i++;
-                }
-                if (i < m_hauteur && vide == 0) {
-                    if(get(i, j) != s_BLOQUE) {
-                        set(i, j, s_BLOQUE);
-                        modifie = true;
-                    }
-                    i++;
-                } else {
-                    break;
-                }
-            }
-            //endregion
-
-            //region fin de la colonne
-            i = m_hauteur-1;
-            debut = i;
-            for (Integer num : m_Tcolonnes.get(j)) {
-                trouve = 0;
-                vide = 0;
-                for (int idx = 0; idx < num; idx++) {
-                    if(idx == 0)
-                        debut = i;
-                    switch (get(i, j)) {
-                        case s_VIDE:
-                            if (trouve != 0) {
-                                set(i, j, s_PLEIN);
-                                modifie = true;
-                            }else {
-                                vide++;
-                            }
-                            break;
-                        case s_PLEIN:
-                            trouve++;
-                            break;
-                        case s_BLOQUE:
-                            //si bloqué, impossible de caser le segment
-                            for(int k = debut; k > i; k--)
-                                set(k, j, s_BLOQUE);
-                            if(i!=debut)
-                                modifie = true;
-                            idx = -1;
-                            vide = 0;
-                            break;
-                    }
-                    i--;
-                }
-                while(i >= 0 && get(i, j) == s_PLEIN){
-                    set(debut, j, s_BLOQUE);
-                    modifie = true;
-                    i--;
-                }
-                if (i >= 0 && vide == 0) {
-                    if(get(i, j) != s_BLOQUE) {
-                        set(i, j, s_BLOQUE);
-                        modifie = true;
-                    }
-                    i--;
-                } else {
-                    break;
-                }
-            }
-            //endregion
-        }
-
-        //Réentrance si modification durant la phase
-        if(modifie && !m_modePasAPas)
-            phaseBordure();
-    }
-
-    //phase de remplissage avec les combinaisons gagnantes
-    public void phasePossible(){
-        ArrayList<Segment> espacesLibre;
-
-        //region Pour chaque ligne
-        for (int i = 0; i < m_hauteur; i++) {
-            ArrayList<Integer> ligne = m_lignes.get(i);
-            espacesLibre = recupEspaceVideLigne(i);
-            ArrayList<Segment> ligneARemplir = Outils.combinaisonGagnante(espacesLibre, ligne);
-            remplirLigne(ligneARemplir, i, s_PLEIN);
-        }
-        //endregion
-
-        //region Pour chaque colonne
-        for (int j = 0; j < m_largeur; j++) {
-            ArrayList<Integer> colonne = m_colonnes.get(j);
-            espacesLibre = recupEspaceVideColonne(j);
-            ArrayList<Segment> colonneARemplir = Outils.combinaisonGagnante(espacesLibre, colonne);
-            remplirColonne(colonneARemplir, j, s_PLEIN);
-        }
-        //endregion
-    }
-
-    //phase de comptage
-    public void phaseComptage(){
-        boolean modifie = false;
-        for(int i = 0; i < m_hauteur;i++){
-            if(verifLigne(i)){
-                for(int j = 0; j < m_largeur;j++){
-                    if(get(i, j) == s_VIDE){
-                        modifie = true;
-                        set(i, j, s_BLOQUE);
-                    }
-                }
-            }
-        }
-        for (int j = 0; j < m_largeur; j++) {
-            if(verifColonne(j)){
-                for(int i = 0; i < m_hauteur;i++){
-                    if(get(i, j) == s_VIDE){
-                        modifie = true;
-                        set(i, j, s_BLOQUE);
-                    }
-                }
-            }
-        }
-
-        if(modifie && !m_modePasAPas)
-            phaseComptage();
-    }
 
     public boolean debile(int _i, int _j){
         if(_i == (m_hauteur-1) && _j == (m_largeur-1)){
@@ -632,8 +310,8 @@ public class LogicPicGrid implements Serializable {
             ArrayList<Segment> vide = new ArrayList<>();
             vide.add(new Segment(0, m_largeur - 1));
             for (ArrayList<Segment> combinaison : combinaisons(vide, valeurs)) {
-                remplirLigne(vide, _i, s_VIDE);
-                remplirLigne(combinaison, _i, s_PLEIN);
+                remplir(Etape.Sens.LIGNE, vide, _i, s_VIDE);
+                remplir(Etape.Sens.LIGNE, combinaison, _i, s_PLEIN);
                 if (moindebile(_i + 1)){
                     return true;
                 }
@@ -644,70 +322,49 @@ public class LogicPicGrid implements Serializable {
 
     public void magie(){
         m_modification = false;
-        try {
-            ArrayList<Integer> valeurs;
-            ArrayList<Segment> espacesLibre, espacesPlein, combinaisonARemplir;
-            ArrayList<ArrayList<Segment>> combinaisons,combinaisonsRestante,inverseCombiRest;
+        while(!m_etapes.isEmpty() && (!m_modePasAPas || !m_modification)) {
+            try {
+                ArrayList<Integer> valeurs;
+                ArrayList<Segment> espacesLibre, espacesPlein, combinaisonARemplir;
+                ArrayList<ArrayList<Segment>> combinaisons, combinaisonsRestante, inverseCombiRest;
 
-            //region Pour chaque ligne
-            for (int i = 0; i < m_hauteur; i++) {
-                valeurs = m_lignes.get(i);
-                espacesLibre = recupEspaceVideLigne(i);
-                espacesPlein = recupEspacePleinLigne(i);
+                Etape current = m_etapes.get(0);
+                Etape.Sens sens = current.m_sens;
+                int index = current.m_index;
+
+                valeurs = recupValeur(sens, index);
+                espacesLibre = recupEspace(sens, index, s_BLOQUE, true);
+                espacesPlein = recupEspace(sens, index, s_PLEIN, false);
 
                 combinaisons = Outils.combinaisons(espacesLibre, valeurs);
                 combinaisonsRestante = Outils.suppressionCombinaisons(combinaisons, espacesPlein);
                 combinaisonARemplir = combinaisonsRestante.stream().reduce(null, Outils::mergeSeg);
-                remplirLigne(combinaisonARemplir, i, s_PLEIN);
+                remplir(sens, combinaisonARemplir, index, s_PLEIN);
 
                 inverseCombiRest = Outils.inversionCombinaisons(combinaisonsRestante, m_largeur);
                 combinaisonARemplir = inverseCombiRest.stream().reduce(null, Outils::mergeSeg);
-                remplirLigne(combinaisonARemplir, i, s_BLOQUE);
+                remplir(sens, combinaisonARemplir, index, s_BLOQUE);
+
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-            //endregion
-
-            //region Pour chaque colonne
-            for (int j = 0; j < m_largeur; j++) {
-                valeurs = m_colonnes.get(j);
-                espacesLibre = recupEspaceVideColonne(j);
-                espacesPlein = recupEspacePleinColonne(j);
-
-                combinaisons = Outils.combinaisons(espacesLibre, valeurs);
-                combinaisonsRestante = Outils.suppressionCombinaisons(combinaisons, espacesPlein);
-                combinaisonARemplir = combinaisonsRestante.stream().reduce(null, Outils::mergeSeg);
-                remplirColonne(combinaisonARemplir, j, s_PLEIN);
-
-                inverseCombiRest = Outils.inversionCombinaisons(combinaisonsRestante, m_hauteur);
-                combinaisonARemplir = inverseCombiRest.stream().reduce(null, Outils::mergeSeg);
-                remplirColonne(combinaisonARemplir, j, s_BLOQUE);
-            }
-            //endregion
-        }catch(Exception e) {
-            e.printStackTrace();
+            m_etapes.remove(0);
         }
-        if(m_modification && !m_modePasAPas)
-            magie();
     }
 
     //--------------------------------------------------------------------------
     //------                  Outils de gestion des Grid                  ------
     //--------------------------------------------------------------------------
-    private boolean verifLigne(int _i){
-        return Outils.compareArray(recupLigne(_i),m_lignes.get(_i));
-    }
-
-    private boolean verifColonne(int _j){
-        return Outils.compareArray(recupColonne(_j),m_colonnes.get(_j));
-    }
 
     public boolean verification(){
         for(int i = 0; i < m_hauteur;i++){
-            if(!verifLigne(i))
+            if(!verifUnitaire(Etape.Sens.LIGNE, i))
                 return false;
         }
         for (int j = 0; j < m_largeur; j++) {
-            if(!verifColonne(j))
+            if(!verifUnitaire(Etape.Sens.COLONNE, j)) {
                 return false;
+            }
         }
         for(int i = 0; i < m_hauteur;i++){
             for(int j = 0; j < m_largeur; j++){
@@ -724,136 +381,107 @@ public class LogicPicGrid implements Serializable {
         return true;
     }
 
-    private ArrayList<Integer> recupLigne(int _i){
-        int idxDebut = 0;
-        boolean debut = true;
-        ArrayList<Integer> ligne = new ArrayList<>();
-        for (int j = 0; j < m_largeur; j++) {
-            if (debut && get(_i, j) == s_PLEIN) {
-                idxDebut = j;
-                debut = false;
-            } else if (!debut && get(_i, j) != s_PLEIN) {
-                ligne.add(j-idxDebut);
-                debut = true;
-            }
-        }
-        if(!debut){
-            ligne.add(m_largeur - idxDebut);
-        }
-        return ligne;
+    private boolean verifUnitaire(Etape.Sens _sens, int _index){
+        return Outils.compareArray(lectureValeur(_sens, _index), recupValeur(_sens, _index));
     }
 
-    private ArrayList<Integer> recupColonne(int _j){
-        int idxDebut = 0;
-        boolean debut = true;
-        ArrayList<Integer> colonne = new ArrayList<>();
-        for(int i = 0; i < m_hauteur; i++){
-            if(debut && get(i, _j) == s_PLEIN){
-                idxDebut = i;
-                debut = false;
-            }else if(!debut && get(i, _j) != s_PLEIN){
-                colonne.add(i-idxDebut);
-                debut = true;
-            }
+    private ArrayList<Integer> recupValeur(Etape.Sens _sens, int _index){
+        switch (_sens) {
+            case LIGNE:
+                return m_lignes.get(_index);
+            case COLONNE:
+                return m_colonnes.get(_index);
         }
-        if(!debut){
-            colonne.add(m_hauteur - idxDebut);
-        }
-        return colonne;
+        return null;
     }
 
-    private ArrayList<Segment> recupEspacePleinLigne(int _i){
-        ArrayList espacesPlein = new ArrayList<>();
+    private ArrayList<Integer> lectureValeur(Etape.Sens _sens, int _index){
+        ArrayList<Integer> result = new ArrayList<>();
+        int idxDebut = 0;
         boolean debut = false;
-        int idxDebut = 0;
-        for (int j = 0; j < m_largeur; j++){
-            if(!debut && get(_i, j) == s_PLEIN){
+        int max = 0;
+        switch (_sens) {
+            case LIGNE:
+                max = m_largeur;
+                break;
+            case COLONNE:
+                max = m_hauteur;
+                break;
+        }
+        for (int comp = 0; comp < max; comp++){
+            int valeur =  0;
+            switch (_sens) {
+                case LIGNE:
+                    valeur = get(_index, comp);
+                    break;
+                case COLONNE:
+                    valeur = get(comp, _index);
+                    break;
+            }
+            if(!debut && valeur == s_PLEIN){
                 debut = true;
-                idxDebut = j;
-            }else if(debut && get(_i, j) != s_PLEIN){
+                idxDebut = comp;
+            }else if(debut && valeur != s_PLEIN){
                 debut = false;
-                espacesPlein.add(new Segment(idxDebut,j-1));
+                result.add(comp-idxDebut);
             }
         }
         if(debut){
-            espacesPlein.add(new Segment(idxDebut,m_largeur-1));
+            result.add(max-idxDebut);
         }
-        return espacesPlein;
+        return result;
     }
 
-    private ArrayList<Segment> recupEspacePleinColonne(int _j){
-        ArrayList<Segment> espacesPlein = new ArrayList<>();
+    private ArrayList<Segment> recupEspace(Etape.Sens _sens, int _index, int _valeur, boolean _invers){
+        ArrayList<Segment> result = new ArrayList<>();
         boolean debut = false;
         int idxDebut = 0;
-        for (int i = 0; i < m_hauteur; i++){
-            if(!debut && get(i, _j) == s_PLEIN){
+        int max = 0;
+        switch (_sens) {
+            case LIGNE:
+                max = m_largeur;
+                break;
+            case COLONNE:
+                max = m_hauteur;
+                break;
+        }
+        for (int comp = 0; comp < max; comp++){
+            int valeur =  0;
+            switch (_sens) {
+                case LIGNE:
+                    valeur = get(_index, comp);
+                    break;
+                case COLONNE:
+                    valeur = get(comp, _index);
+                    break;
+            }
+            if(!debut && (!_invers && valeur == _valeur || _invers && valeur != _valeur )){
                 debut = true;
-                idxDebut = i;
-            }else if(debut && get(i, _j) != s_PLEIN){
+                idxDebut = comp;
+            }else if(debut && (!_invers && valeur != _valeur || _invers && valeur == _valeur )){
                 debut = false;
-                espacesPlein.add(new Segment(idxDebut,i-1));
+                result.add(new Segment(idxDebut, comp-1));
             }
         }
         if(debut){
-            espacesPlein.add(new Segment(idxDebut,m_hauteur-1));
+            result.add(new Segment(idxDebut, max-1));
         }
-        return  espacesPlein;
+        return result;
     }
 
-    private ArrayList<Segment> recupEspaceVideLigne(int _i){
-        ArrayList espacesLibre = new ArrayList<>();
-        boolean debut = false;
-        int idxDebut = 0;
-        for (int j = 0; j < m_largeur; j++){
-            if(!debut && get(_i, j) != s_BLOQUE){
-                debut = true;
-                idxDebut = j;
-            }else if(debut && get(_i, j) == s_BLOQUE){
-                debut = false;
-                espacesLibre.add(new Segment(idxDebut,j-1));
-            }
-        }
-        if(debut){
-            espacesLibre.add(new Segment(idxDebut,m_largeur-1));
-        }
-        return espacesLibre;
-    }
-
-    private ArrayList<Segment> recupEspaceVideColonne(int _j){
-        ArrayList<Segment> espacesLibre = new ArrayList<>();
-        boolean debut = false;
-        int idxDebut = 0;
-        for (int i = 0; i < m_hauteur; i++){
-            if(!debut && get(i, _j) != s_BLOQUE){
-                debut = true;
-                idxDebut = i;
-            }else if(debut && get(i, _j) == s_BLOQUE){
-                debut = false;
-                espacesLibre.add(new Segment(idxDebut,i-1));
-            }
-        }
-        if(debut){
-            espacesLibre.add(new Segment(idxDebut,m_hauteur-1));
-        }
-        return  espacesLibre;
-    }
-
-    private void remplirLigne(ArrayList<Segment> _liste, int _i, int _val) {
+    private void remplir(Etape.Sens _sens, ArrayList<Segment> _liste, int _index, int _valeur) {
         if (_liste != null) {
-            int j = 0;
             for (Segment seg : _liste) {
-                for (j = seg.m_debut; j <= seg.m_fin; j++)
-                    set(_i, j, _val);
-            }
-        }
-    }
-
-    private void remplirColonne(ArrayList<Segment> _liste, int _j, int _val) {
-        if (_liste != null) {
-            int i = 0;
-            for (Segment seg : _liste) {
-                for (i = seg.m_debut; i <= seg.m_fin; i++)
-                    set(i, _j, _val);
+                for (int comp = seg.m_debut; comp <= seg.m_fin; comp++) {
+                    switch (_sens) {
+                        case LIGNE:
+                            set(_index, comp, _valeur);
+                            break;
+                        case COLONNE:
+                            set(comp, _index, _valeur);
+                            break;
+                    }
+                }
             }
         }
     }

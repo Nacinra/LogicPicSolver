@@ -1,6 +1,7 @@
 *.class
 
-
+out/*
+*.mf
 # Package Files #
 *.jar
 

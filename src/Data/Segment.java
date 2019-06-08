@@ -22,4 +22,9 @@ public class Segment{
             _i--;
         }
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        return (obj instanceof Segment) && m_debut == ((Segment) obj).m_debut && m_fin == ((Segment) obj).m_fin;
+    }
 }
