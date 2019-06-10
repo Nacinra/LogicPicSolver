@@ -31,6 +31,8 @@ public class LogicPicGrid implements Serializable {
     private transient boolean m_modification = false;
 
     private transient ArrayList<Etape> m_etapes = new ArrayList<>();
+    private transient ArrayList<int[][]> m_savesTable = new ArrayList<>();
+    private transient ArrayList<Etape> m_savesEtape = new ArrayList<>();
 
     //--------------------------------------------------------------------------
     //------              Création Utilisation de la grille               ------
@@ -115,15 +117,9 @@ public class LogicPicGrid implements Serializable {
                 result.m_Tcolonnes.add(Tcolonne);
             }
 
-            result.m_etapes = new ArrayList<>();
-            for (int i = 0; i < result.m_hauteur; i++){
-                result.addEtape(Etape.Sens.LIGNE, i);
-            }
-
-            for (int j = 0; j < result.m_largeur; j++){
-                result.addEtape(Etape.Sens.COLONNE, j);
-            }
-
+            result.resetEtapes();
+            result.m_savesTable = new ArrayList<>();
+            result.m_savesEtape = new ArrayList<>();
             s_singleton = result;
         }
     }
@@ -236,14 +232,13 @@ public class LogicPicGrid implements Serializable {
 
     public void reset() {
         for (int i = 0; i < m_hauteur; i++) {
-            addEtape(Etape.Sens.LIGNE, i);
             for (int j = 0; j < m_largeur; j++)
                 set(i, j, s_VIDE);
         }
 
-        for (int j = 0; j < m_largeur; j++) {
-            addEtape(Etape.Sens.COLONNE, j);
-        }
+        m_savesEtape = new ArrayList<>();
+        m_savesTable = new ArrayList<>();
+        resetEtapes();
     }
 
     private int get(int _i, int _j){
@@ -258,12 +253,23 @@ public class LogicPicGrid implements Serializable {
             addEtape(Etape.Sens.COLONNE, _j);
             if (m_swingWorker != null) {
                 try {
-                    Thread.sleep(2);
+                    Thread.sleep(5);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
                 m_swingWorker.myPublish(new Quadruplet(_i, _j, _val,m_largeur));
             }
+        }
+    }
+
+    private void resetEtapes(){
+        m_etapes = new ArrayList<>();
+        for (int i = 0; i < m_hauteur; i++){
+            addEtape(Etape.Sens.LIGNE, i);
+        }
+
+        for (int j = 0; j < m_largeur; j++){
+            addEtape(Etape.Sens.COLONNE, j);
         }
     }
 
@@ -310,8 +316,8 @@ public class LogicPicGrid implements Serializable {
             ArrayList<Segment> vide = new ArrayList<>();
             vide.add(new Segment(0, m_largeur - 1));
             for (ArrayList<Segment> combinaison : combinaisons(vide, valeurs)) {
-                remplir(Etape.Sens.LIGNE, vide, _i, s_VIDE);
-                remplir(Etape.Sens.LIGNE, combinaison, _i, s_PLEIN);
+                remplir(new Etape(Etape.Sens.LIGNE, _i), vide, s_VIDE);
+                remplir(new Etape(Etape.Sens.LIGNE, _i), combinaison, s_PLEIN);
                 if (moindebile(_i + 1)){
                     return true;
                 }
@@ -321,35 +327,80 @@ public class LogicPicGrid implements Serializable {
     }
 
     public void magie(){
+        boolean reset = false;
         m_modification = false;
-        while(!m_etapes.isEmpty() && (!m_modePasAPas || !m_modification)) {
+        while(!m_etapes.isEmpty() && !(m_modePasAPas && m_modification)) {
             try {
-                ArrayList<Integer> valeurs;
-                ArrayList<Segment> espacesLibre, espacesPlein, combinaisonARemplir;
-                ArrayList<ArrayList<Segment>> combinaisons, combinaisonsRestante, inverseCombiRest;
-
                 Etape current = m_etapes.get(0);
-                Etape.Sens sens = current.m_sens;
-                int index = current.m_index;
+                ArrayList<ArrayList<Segment>> combinaisonsRestante;
+                ArrayList<Segment> combinaisonARemplir;
+                ArrayList<ArrayList<Segment>> inverseCombiRest;
+                reset = false;
 
-                valeurs = recupValeur(sens, index);
-                espacesLibre = recupEspace(sens, index, s_BLOQUE, true);
-                espacesPlein = recupEspace(sens, index, s_PLEIN, false);
+                combinaisonsRestante = rechercheCombinaisons(current);
+                if(combinaisonsRestante == null || combinaisonsRestante.size() < 1){
+                    resetEtapes();
+                    current = resetTable();
+                    combinaisonsRestante = rechercheCombinaisons(current);
+                    combinaisonsRestante.remove(0);
+                    reset = true;
+                }
 
-                combinaisons = Outils.combinaisons(espacesLibre, valeurs);
-                combinaisonsRestante = Outils.suppressionCombinaisons(combinaisons, espacesPlein);
                 combinaisonARemplir = combinaisonsRestante.stream().reduce(null, Outils::mergeSeg);
-                remplir(sens, combinaisonARemplir, index, s_PLEIN);
+                remplir(current, combinaisonARemplir, s_PLEIN);
 
                 inverseCombiRest = Outils.inversionCombinaisons(combinaisonsRestante, m_largeur);
                 combinaisonARemplir = inverseCombiRest.stream().reduce(null, Outils::mergeSeg);
-                remplir(sens, combinaisonARemplir, index, s_BLOQUE);
+                remplir(current, combinaisonARemplir, s_BLOQUE);
 
             } catch (Exception e) {
                 e.printStackTrace();
             }
-            m_etapes.remove(0);
+            if(!reset) {
+                m_etapes.remove(0);
+            }
         }
+        if(m_etapes.isEmpty() && !verification()){
+            Etape etape = rechercheMinCombinaison();
+            saveTable(etape);
+
+            ArrayList<ArrayList<Segment>> combinaisonMin = rechercheCombinaisons(etape);
+            ArrayList<Segment> tentative = combinaisonMin.get(0);
+            remplir(etape, tentative, s_PLEIN);
+            magie();
+        }
+    }
+
+    private ArrayList<ArrayList<Segment>> rechercheCombinaisons(Etape _etape){
+        ArrayList<Integer> valeurs = recupValeur(_etape);
+        ArrayList<Segment> espacesLibre = recupEspace(_etape, s_BLOQUE, true);
+        ArrayList<Segment> espacesPlein = recupEspace(_etape, s_PLEIN, false);
+        ArrayList<ArrayList<Segment>> combinaisons = Outils.combinaisons(espacesLibre, valeurs);
+        return Outils.suppressionCombinaisons(combinaisons, espacesPlein);
+    }
+
+    private Etape rechercheMinCombinaison(){
+        Etape result = null, current;
+        int min = Integer.MAX_VALUE;
+        for (int i = 0; i < m_hauteur; i++){
+            current = new Etape(Etape.Sens.LIGNE, i);
+            ArrayList<ArrayList<Segment>> combinaisonsRestante = rechercheCombinaisons(current);
+
+            if(combinaisonsRestante.size() > 1 && combinaisonsRestante.size() < min) {
+                result = current;
+                min = combinaisonsRestante.size();
+            }
+        }
+        for (int j = 0; j < m_largeur; j++){
+            current = new Etape(Etape.Sens.COLONNE, j);
+            ArrayList<ArrayList<Segment>> combinaisonsRestante = rechercheCombinaisons(current);
+
+            if(combinaisonsRestante.size() > 1 && combinaisonsRestante.size() < min){
+                result = current;
+                min = combinaisonsRestante.size();
+            }
+        }
+        return result;
     }
 
     //--------------------------------------------------------------------------
@@ -358,20 +409,16 @@ public class LogicPicGrid implements Serializable {
 
     public boolean verification(){
         for(int i = 0; i < m_hauteur;i++){
-            if(!verifUnitaire(Etape.Sens.LIGNE, i))
+            if(!verifUnitaire(new Etape(Etape.Sens.LIGNE, i)))
                 return false;
         }
         for (int j = 0; j < m_largeur; j++) {
-            if(!verifUnitaire(Etape.Sens.COLONNE, j)) {
+            if(!verifUnitaire(new Etape(Etape.Sens.COLONNE, j)))
                 return false;
-            }
         }
         for(int i = 0; i < m_hauteur;i++){
             for(int j = 0; j < m_largeur; j++){
                 switch(get(i, j)){
-                    case s_PLEIN :
-                        set(i, j, s_FINAL);
-                        break;
                     case s_BLOQUE :
                         set(i, j, s_VIDE);
                         break;
@@ -381,26 +428,26 @@ public class LogicPicGrid implements Serializable {
         return true;
     }
 
-    private boolean verifUnitaire(Etape.Sens _sens, int _index){
-        return Outils.compareArray(lectureValeur(_sens, _index), recupValeur(_sens, _index));
+    private boolean verifUnitaire(Etape _etape){
+        return Outils.compareArray(lectureValeur(_etape), recupValeur(_etape));
     }
 
-    private ArrayList<Integer> recupValeur(Etape.Sens _sens, int _index){
-        switch (_sens) {
+    private ArrayList<Integer> recupValeur(Etape _etape){
+        switch (_etape.m_sens) {
             case LIGNE:
-                return m_lignes.get(_index);
+                return m_lignes.get(_etape.m_index);
             case COLONNE:
-                return m_colonnes.get(_index);
+                return m_colonnes.get(_etape.m_index);
         }
         return null;
     }
 
-    private ArrayList<Integer> lectureValeur(Etape.Sens _sens, int _index){
+    private ArrayList<Integer> lectureValeur(Etape _etape){
         ArrayList<Integer> result = new ArrayList<>();
         int idxDebut = 0;
         boolean debut = false;
         int max = 0;
-        switch (_sens) {
+        switch (_etape.m_sens) {
             case LIGNE:
                 max = m_largeur;
                 break;
@@ -410,12 +457,12 @@ public class LogicPicGrid implements Serializable {
         }
         for (int comp = 0; comp < max; comp++){
             int valeur =  0;
-            switch (_sens) {
+            switch (_etape.m_sens) {
                 case LIGNE:
-                    valeur = get(_index, comp);
+                    valeur = get(_etape.m_index, comp);
                     break;
                 case COLONNE:
-                    valeur = get(comp, _index);
+                    valeur = get(comp, _etape.m_index);
                     break;
             }
             if(!debut && valeur == s_PLEIN){
@@ -432,12 +479,12 @@ public class LogicPicGrid implements Serializable {
         return result;
     }
 
-    private ArrayList<Segment> recupEspace(Etape.Sens _sens, int _index, int _valeur, boolean _invers){
+    private ArrayList<Segment> recupEspace(Etape _etape, int _valeur, boolean _invers){
         ArrayList<Segment> result = new ArrayList<>();
         boolean debut = false;
         int idxDebut = 0;
         int max = 0;
-        switch (_sens) {
+        switch (_etape.m_sens) {
             case LIGNE:
                 max = m_largeur;
                 break;
@@ -447,12 +494,12 @@ public class LogicPicGrid implements Serializable {
         }
         for (int comp = 0; comp < max; comp++){
             int valeur =  0;
-            switch (_sens) {
+            switch (_etape.m_sens) {
                 case LIGNE:
-                    valeur = get(_index, comp);
+                    valeur = get(_etape.m_index, comp);
                     break;
                 case COLONNE:
-                    valeur = get(comp, _index);
+                    valeur = get(comp, _etape.m_index);
                     break;
             }
             if(!debut && (!_invers && valeur == _valeur || _invers && valeur != _valeur )){
@@ -469,21 +516,43 @@ public class LogicPicGrid implements Serializable {
         return result;
     }
 
-    private void remplir(Etape.Sens _sens, ArrayList<Segment> _liste, int _index, int _valeur) {
+    private void remplir(Etape _etape, ArrayList<Segment> _liste, int _valeur) {
         if (_liste != null) {
             for (Segment seg : _liste) {
                 for (int comp = seg.m_debut; comp <= seg.m_fin; comp++) {
-                    switch (_sens) {
+                    switch (_etape.m_sens) {
                         case LIGNE:
-                            set(_index, comp, _valeur);
+                            set(_etape.m_index, comp, _valeur);
                             break;
                         case COLONNE:
-                            set(comp, _index, _valeur);
+                            set(comp, _etape.m_index, _valeur);
                             break;
                     }
                 }
             }
         }
+    }
+
+    private void saveTable(Etape _etape){
+        int [][] save_table = new int[m_hauteur][m_largeur];
+        for (int i = 0; i < m_hauteur; i++)
+            for (int j = 0; j < m_largeur; j++)
+                save_table[i][j] = get(i, j);
+        m_savesTable.add(save_table);
+
+        m_savesEtape.add(_etape);
+    }
+
+    private Etape resetTable(){
+        int [][] save_table = m_savesTable.get(m_savesTable.size()-1);
+        for (int i = 0; i < m_hauteur; i++)
+            for (int j = 0; j < m_largeur; j++)
+                set(i, j, save_table[i][j]);
+        m_savesTable.remove(m_savesTable.size()-1);
+
+        Etape result = m_savesEtape.get(m_savesEtape.size()-1);
+        m_savesEtape.remove(m_savesEtape.size()-1);
+        return result;
     }
 
     private void afficherCaracteristique() {
