@@ -24,9 +24,6 @@ public class SelectionBouton extends JFrame {
         result.setContentPane(result.mainPanel);
 
         //Boutons des différentes phases
-        result.mainPanel.add(new Boutton("Phase Bordure",() -> LogicPicGrid.getSingleton().phaseBordure()));
-        result.mainPanel.add(new Boutton("Phase Possible",() -> LogicPicGrid.getSingleton().phasePossible()));
-        result.mainPanel.add(new Boutton("Phase Comptage",() -> LogicPicGrid.getSingleton().phaseComptage()));
         result.mainPanel.add(new Boutton("Magie", () -> LogicPicGrid.getSingleton().magie()));
 
         //Boutons des gestion
